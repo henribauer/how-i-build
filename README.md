@@ -20,7 +20,7 @@ down what we learned so the next session doesn't start from zero.
 ## The core idea
 
 ```mermaid
-flowchart LR
+flowchart TD
     H([Henri]) -->|describes outcome| G[Grill: questions on intent, risk, trade-offs]
     G --> S[Spec + tickets]
     S -->|Henri OKs| B[Builder agent<br/>Claude Code]
