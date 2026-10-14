@@ -14,6 +14,7 @@ down what we learned so the next session doesn't start from zero.
 - [Memory: the knowledge engine](#memory-the-knowledge-engine)
 - [Storage rules that came from breakage](#storage-rules-that-came-from-breakage)
 - [What doesn't work yet](#what-doesnt-work-yet)
+- [Local models](#local-models)
 - [Examples](#examples)
 
 ## The core idea
@@ -142,6 +143,18 @@ machine, with me approving in a native dialog. It's built but not usable end to 
 review is switched off until I can prove the reviewer is properly isolated from the builder, and
 four recovery bugs are still open. Until then the manual loop above is the workflow. I'd rather run
 a slower process I trust than a fast one I can't check.
+
+## Local models
+
+Next to the hosted agents, I experiment with local models on my own hardware. My Windows PC has an
+RTX 4090 and runs GLM-4.7-Flash. The MacBook (M5 Pro, 24 GB) handles `gpt-oss:20b` through Ollama,
+and that's its ceiling: I tried Qwen3 14B and removed it the same day because the machine
+overheated. A 20B mixture-of-experts model that only activates a few billion parameters per token
+runs fine where a dense 14B model doesn't. So the parameter count on the label tells you less than
+the architecture does.
+
+Local models aren't part of the build-and-review loop above. They're where I test what runs
+offline, privately and without usage limits.
 
 ## Examples
 
