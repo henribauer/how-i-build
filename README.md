@@ -22,9 +22,10 @@ down what we learned so the next session doesn't start from zero.
 ```mermaid
 flowchart TD
     H([Henri]) -->|describes outcome| D[Diverge: my ideas first, then the agent widens them<br/>new features only]
-    D --> G[Grill: questions on intent, risk, trade-offs]
+    D --> RS[Research: principles, existing building blocks, tools<br/>new features only]
+    RS --> G[Grill: questions on intent, risk, trade-offs]
     G --> S[Spec + tickets]
-    S -->|Henri OKs| B[Builder agent<br/>Claude Code]
+    S -->|Henri OKs| B[Builder agent<br/>Claude Code + cheaper subagents]
     B -->|diff + checks| R[Reviewer agent<br/>Codex]
     R -->|findings| T{Triage}
     T -->|fix| B
@@ -33,35 +34,65 @@ flowchart TD
     N -->|next ticket| B
 ```
 
-Six rules carry the whole thing:
+Seven rules carry the whole thing:
 
 | Rule | Why |
 |---|---|
 | **The builder never reviews its own work.** | An agent checking its own diff shares the blind spots that produced it. A second model with fresh context catches different mistakes. |
 | **Options before choices.** | Almost every step in this workflow narrows: questions, a spec, a review. Left alone, that means building the first idea that works. So a new feature starts with my own ideas written down, and only then does the agent widen them. In that order because AI suggestions shown first anchor you, and [a 2024 study](https://pmc.ncbi.nlm.nih.gov/articles/PMC11244532) found that AI help makes ideas more similar from person to person. |
+| **Look before you build.** | Most of what a new app needs exists already: patterns that are known to work, libraries, tools, and parts I built in earlier projects. A short research pass before the questions means the grill decides between real options instead of me reinventing them. |
 | **Questions before code.** | A misunderstood goal is cheapest to fix before anything is built. The agent asks only about intent, risk and trade-offs, and looks up facts itself. |
 | **One ticket at a time, one commit per ticket.** | Small diffs are reviewable. A commit only lands after a clean review, and I approve each commit and each push. |
 | **Handoffs live in files, not chat.** | Usage limits run out mid-task. Whoever picks up next, the other agent or a new session, continues from a note in the ticket instead of a chat history it can't see. |
+| **The right model for each job.** | The main agent plans, talks to me, checks results and decides. Self-contained slices go to smaller, faster models that cost a fraction as much. Hard or risky slices stay with the main agent. |
 | **Search first, report after.** | Before solving something, the agent checks whether we solved it already. After solving something hard, it writes down what happened. Solved problems stay solved. |
 
 ## The coding loop
 
-Every ticket runs through ten steps. A new feature or project gets a step 0 first; fixes don't.
+Every ticket runs through ten steps. A new feature or project gets steps 0 and 0b first; fixes don't.
 Claude Code builds by default and Codex reviews. When Claude's usage is exhausted the roles swap.
 
 | # | Step | What happens | Why |
 |---|---|---|---|
 | 0 | Diverge | I answer the six W-questions (why, who, what, where, when, how) in one line each and write down up to three ideas in about five minutes. Then the agent adds a variant of each, a few deliberately odd ones (reverse the problem, drop an assumption) and one from the user's side. Everything goes into a mind map in the spec, and I mark what goes forward. | I tend to jump to the next idea before the first is written down. This makes me write it down, and it means the grill chooses between options instead of polishing the first one. |
+| 0b | Research | Three agents look things up in parallel: principles (how this kind of app is built well), existing building blocks (my own past projects first, then open-source libraries and APIs), and tools to build with. Every claim cites its source. The results land in one table in the spec (what it gives us, licence, cost, maintenance, use / borrow / skip), and I mark the picks. | It comes after my own ideas so they stay unanchored, and before the grill so the questions can build on what already exists. |
 | 1 | Scope and grill | Goal restated in at most 3 sentences, then one question at a time until the outcome, failure boundaries and acceptance examples are clear. | I'm better at answering a sharp question than writing a full spec from scratch. |
 | 2 | Search | Grep past implementation logs for a prior instance. | Re-solving a known problem wastes a session and often re-introduces the old bug. |
 | 3 | Spec | `spec.md` plus one file per ticket. Planned read-only, then a Six Hats check (facts, my gut feeling, risks, benefits, the best alternative we didn't take), then I approve. | The plan is the cheapest place to disagree. The hats make sure the review isn't only about risk. |
 | 4 | Git check | No repo, no build. | Review needs a diff. |
-| 5 | Build one slice | Small steps, project checks after each one, no unrelated refactors. | Unrelated changes hide inside a diff and slip past review. |
+| 5 | Build one slice | Small steps, project checks after each one, no unrelated refactors. Self-contained slices go to a cheaper subagent (see below); the main agent re-runs the checks itself. | Unrelated changes hide inside a diff and slip past review. |
 | 6 | Review handoff | Builder lists what changed (max. 5 bullets) and the checks it ran, then hands over. Anything touching auth, secrets, money, deletion or external input gets an *adversarial* review. | The risky categories are the ones where "looks fine" isn't enough. |
 | 7 | Triage | Each finding is fixed, rejected with a one-line reason, or brought to me. Never applied blindly. Big fixes trigger a second review. | Reviewers are wrong too. Blindly applying findings swaps one agent's mistakes for another's. |
 | 8 | Commit | Conventional commit message, committed when I confirm. | I stay the one who decides what ships. |
 | 9 | Handoff note | Date, agent, what's done, next step, open findings, uncommitted files, appended to the ticket. | The next agent starts from this, not from memory. |
 | 10 | Report | Anything that took more than one try gets a facts-only report: commands, versions, exact error text, fix. | This feeds the knowledge engine below. |
+
+### Who builds a slice
+
+The main agent keeps the work that needs the conversation or judgment: questions, spec, triage,
+anything hard. Slices that can stand on their own go to subagents on smaller models:
+
+| Work | Who |
+|---|---|
+| Mechanical slice: follows an existing pattern, renames, fixtures, docs, config | Haiku |
+| Standard slice: has acceptance examples, named files and a check command | Sonnet |
+| Hard slice: unclear design, cross-module, auth, secrets, money, deletion | Main agent |
+| Broad search across many files | Haiku |
+
+Three rules make that safe:
+
+- **The brief lives in the ticket.** A subagent sees its instructions and the project rules, but not
+  my conversation with the main agent. So before handing off, the main agent writes the decisions
+  that matter for this slice into the ticket. If that doesn't fit, it builds the slice itself.
+- **"Done" is not evidence.** The subagent reports what it changed and what the checks said. The
+  main agent re-runs the checks and compares the changed files with the brief before review.
+- **Visible, not silent.** Every handoff names the exact model. A small plugin blocks any subagent
+  without a model and asks me before one runs on an expensive model.
+
+That plugin went through four adversarial reviews before it held. Each found another way past it:
+agents started from a scripted workflow, a session changing directory, an agent started inside
+another one, relative paths, a second symlink to the same folder. A rule that's enforced needs
+the same review as code, because it is code.
 
 **Stuck rule:** after two failed attempts at the same problem, the agent stops, writes down what it
 tried, and hands over to the other agent. A third attempt from the same agent usually repeats the
@@ -176,5 +207,5 @@ ones. The spec and the ticket are made up to show a full cycle in one place.
 
 [Claude Code](https://claude.com/claude-code) (builder),
 [Codex](https://github.com/openai/codex) (reviewer), [Obsidian](https://obsidian.md) for notes,
-[Mobbin](https://mobbin.com) for design references. The workflow itself is Markdown files and a few
-small scripts, nothing more.
+[Mobbin](https://mobbin.com) for design references. The workflow itself is Markdown files, a few
+small scripts and a Claude Code plugin that enforces the rules an agent could break by accident.
