@@ -79,6 +79,41 @@ anything hard. Slices that can stand on their own go to subagents on smaller mod
 | Hard slice: unclear design, cross-module, auth, secrets, money, deletion | Main agent |
 | Broad search across many files | Haiku |
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor H as Henri
+    participant M as Main agent
+    participant T as Ticket file
+    participant G as Guard plugin
+    participant S as Subagent<br/>Haiku or Sonnet
+    participant K as Shared memory<br/>rules, code logs, wiki
+    participant C as Codex
+    H->>M: approves spec and tickets
+    M->>T: writes the brief
+    Note over T: decisions, files,<br/>check command, out of scope
+    M->>G: hands off one slice with a model
+    alt no model
+        G-->>M: blocked
+    else Opus or Fable
+        G->>H: approve or deny?
+    else Haiku or Sonnet
+        G->>S: starts it, the band shows the model
+    end
+    S->>T: reads the brief
+    S->>K: reads rules, searches code logs
+    Note over S: builds and checks the slice<br/>never sees the chat
+    S->>T: appends its report
+    S-->>M: done
+    M->>M: re-runs checks, diff vs brief
+    M->>C: hands over for review
+```
+
+The subagent never sees the chat. Everything it needs travels through files: the brief in the ticket
+on the way in, the report (files changed, check result, anything it did differently) on the way back,
+and the project rules and past code logs that every agent reads. While it runs, a status line in
+Claude Code shows the task and the exact model it got, e.g. `▸ slice 02 → Sonnet 5.5`.
+
 Three rules make that safe:
 
 - **The brief lives in the ticket.** A subagent sees its instructions and the project rules, but not
