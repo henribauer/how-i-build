@@ -85,10 +85,9 @@ sequenceDiagram
     actor H as Henri
     participant M as Main agent
     participant T as Ticket file
-    participant G as Guard plugin
-    participant S as Subagent<br/>Haiku or Sonnet
-    participant K as Shared memory<br/>rules, code logs, wiki
-    participant C as Codex
+    participant G as Guard
+    participant S as Subagent<br/>Haiku/Sonnet
+    participant K as Memory<br/>rules, logs, wiki
     H->>M: approves spec and tickets
     M->>T: writes the brief
     Note over T: decisions, files,<br/>check command, out of scope
@@ -98,15 +97,15 @@ sequenceDiagram
     else Opus or Fable
         G->>H: approve or deny?
     else Haiku or Sonnet
-        G->>S: starts it, the band shows the model
+        G->>S: starts it
     end
     S->>T: reads the brief
-    S->>K: reads rules, searches code logs
+    S->>K: reads rules and logs
     Note over S: builds and checks the slice<br/>never sees the chat
     S->>T: appends its report
     S-->>M: done
     M->>M: re-runs checks, diff vs brief
-    M->>C: hands over for review
+    Note over M: hands over to Codex review
 ```
 
 The subagent never sees the chat. Everything it needs travels through files: the brief in the ticket
