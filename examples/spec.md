@@ -2,6 +2,28 @@
 
 Status: approved (20260910)
 
+## Diverge
+
+Six W-questions, one line each:
+
+- **Why:** I open subjects at random and waste the first minutes of a session.
+- **Who:** me, at the start of a study session.
+- **What:** a signal of where work is waiting.
+- **Where:** the study hub, the first screen after launch.
+- **When:** every launch, mostly on battery.
+- **How:** read-only, from the existing review log.
+
+Ideas (mine first, then the agent's), with the ones going forward marked ✅:
+
+- Show what's waiting per subject
+  - ✅ A due count on each subject card (mine)
+  - Sort the cards by due count (agent's variant)
+- Tell me where to start
+  - One "start here" card at the top (mine)
+  - Reverse it: hide subjects with nothing due (agent, reversal)
+- From my side instead of the app's: "how long will today take?" as an estimate in minutes (agent)
+  → parked, see deferred decisions
+
 ## Goal
 
 On the study hub, each subject card shows how many flashcards are due today, so I can see where to
@@ -32,9 +54,20 @@ Existing project, so Mobbin references plus a HIG review.
 
 Tokens: `--tone-*-wash` for the pill ground, `--r-pill` radius, existing type scale. No motion.
 
+## Six Hats
+
+| Hat | Line |
+|---|---|
+| Facts | The review log already holds due dates; no new data needed. |
+| Gut feeling | I'd use this every day. Sorting the cards would feel jumpy. |
+| Risks | Counting slows the first paint; a broken log breaks the hub. Both are covered in the failure boundaries. |
+| Benefits | Small, read-only, one ticket. |
+| Best alternative not taken | A minutes-per-day estimate: more useful, but needs timing data we don't log yet. |
+
 ## Deferred decisions
 
 - Overdue vs. due today as separate states: parked until the count is in use.
+- A "how long will today take" estimate: needs per-card timing in the review log first.
 
 ## Tickets
 

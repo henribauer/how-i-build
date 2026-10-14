@@ -21,7 +21,8 @@ down what we learned so the next session doesn't start from zero.
 
 ```mermaid
 flowchart TD
-    H([Henri]) -->|describes outcome| G[Grill: questions on intent, risk, trade-offs]
+    H([Henri]) -->|describes outcome| D[Diverge: my ideas first, then the agent widens them<br/>new features only]
+    D --> G[Grill: questions on intent, risk, trade-offs]
     G --> S[Spec + tickets]
     S -->|Henri OKs| B[Builder agent<br/>Claude Code]
     B -->|diff + checks| R[Reviewer agent<br/>Codex]
@@ -32,11 +33,12 @@ flowchart TD
     N -->|next ticket| B
 ```
 
-Five rules carry the whole thing:
+Six rules carry the whole thing:
 
 | Rule | Why |
 |---|---|
 | **The builder never reviews its own work.** | An agent checking its own diff shares the blind spots that produced it. A second model with fresh context catches different mistakes. |
+| **Options before choices.** | Almost every step in this workflow narrows: questions, a spec, a review. Left alone, that means building the first idea that works. So a new feature starts with my own ideas written down, and only then does the agent widen them. In that order because AI suggestions shown first anchor you, and [a 2024 study](https://pmc.ncbi.nlm.nih.gov/articles/PMC11244532) found that AI help makes ideas more similar from person to person. |
 | **Questions before code.** | A misunderstood goal is cheapest to fix before anything is built. The agent asks only about intent, risk and trade-offs, and looks up facts itself. |
 | **One ticket at a time, one commit per ticket.** | Small diffs are reviewable. A commit only lands after a clean review, and I approve each commit and each push. |
 | **Handoffs live in files, not chat.** | Usage limits run out mid-task. Whoever picks up next, the other agent or a new session, continues from a note in the ticket instead of a chat history it can't see. |
@@ -44,14 +46,15 @@ Five rules carry the whole thing:
 
 ## The coding loop
 
-Every ticket runs through ten steps. Claude Code builds by default and Codex reviews. When Claude's
-usage is exhausted the roles swap.
+Every ticket runs through ten steps. A new feature or project gets a step 0 first; fixes don't.
+Claude Code builds by default and Codex reviews. When Claude's usage is exhausted the roles swap.
 
 | # | Step | What happens | Why |
 |---|---|---|---|
+| 0 | Diverge | I answer the six W-questions (why, who, what, where, when, how) in one line each and write down up to three ideas in about five minutes. Then the agent adds a variant of each, a few deliberately odd ones (reverse the problem, drop an assumption) and one from the user's side. Everything goes into a mind map in the spec, and I mark what goes forward. | I tend to jump to the next idea before the first is written down. This makes me write it down, and it means the grill chooses between options instead of polishing the first one. |
 | 1 | Scope and grill | Goal restated in at most 3 sentences, then one question at a time until the outcome, failure boundaries and acceptance examples are clear. | I'm better at answering a sharp question than writing a full spec from scratch. |
 | 2 | Search | Grep past implementation logs for a prior instance. | Re-solving a known problem wastes a session and often re-introduces the old bug. |
-| 3 | Spec | `spec.md` plus one file per ticket. Planned read-only, then I approve. | The plan is the cheapest place to disagree. |
+| 3 | Spec | `spec.md` plus one file per ticket. Planned read-only, then a Six Hats check (facts, my gut feeling, risks, benefits, the best alternative we didn't take), then I approve. | The plan is the cheapest place to disagree. The hats make sure the review isn't only about risk. |
 | 4 | Git check | No repo, no build. | Review needs a diff. |
 | 5 | Build one slice | Small steps, project checks after each one, no unrelated refactors. | Unrelated changes hide inside a diff and slip past review. |
 | 6 | Review handoff | Builder lists what changed (max. 5 bullets) and the checks it ran, then hands over. Anything touching auth, secrets, money, deletion or external input gets an *adversarial* review. | The risky categories are the ones where "looks fine" isn't enough. |
@@ -73,14 +76,15 @@ ticket:
 |---|---|
 | No UI | None |
 | UI change in an existing project | Real-world references before designing, a design review against Apple's Human Interface Guidelines after |
-| New project with UI | The full track below |
+| New project with UI | The full track below, starting at D0 |
 
 | # | Step | Rule |
 |---|---|---|
+| D0 | Diverge | Step 0 for design: up to three directions, each a feel in 2–3 words plus one app I'd point to. The agent adds a few more, at least one deliberately the opposite. I mark which go forward. |
 | D1 | Design grill | Every style word I use ("modern", "playful") gets pinned to one line of *means / does not mean*, plus one reference. |
 | D2 | References | 3–5 real screens from shipped apps (via [Mobbin](https://mobbin.com)) for the same pattern and platform, one line each on what to borrow. |
 | D3 | Design spec | Two tables: tokens (colour, type, spacing, radius) and motion (what moves, trigger, duration, easing, reduced-motion fallback). I approve them. |
-| D4 | Prototype | One throwaway HTML mockup of the key screen with real motion, two variants at most. I pick one. |
+| D4 | Prototype | One throwaway HTML mockup of the key screen with real motion, two variants at most, taken from the directions marked in D0. I pick one. |
 | D5 | Build | Tokens only, no hardcoded values. Animate `transform` and `opacity` only. Nothing loops while idle. Respect `prefers-reduced-motion`. |
 | D6 | Review | The reviewing agent, never the builder, checks fresh screenshots against the HIG, plus a recording, the reduced-motion state and measured contrast. |
 | D7 | Record | The chosen direction goes into an architecture decision record so no later session re-decides it. |
@@ -92,7 +96,9 @@ static devices (tinted cards, a larger radius, pill tags that carry real metadat
 per screen) and no motion at all, because none of the reference apps got their playfulness from
 movement. That's where D1 comes from.
 
-D4 exists because reference screenshots show layout but not animation, so only a working prototype
+D0 exists because everything after it narrows: the references are other people's screens and the
+prototype allows two variants. Without it, my only design options were the first idea and borrowed
+ones. D4 exists because reference screenshots show layout but not animation, so only a working prototype
 can settle durations and easing. The idle rule in D5 comes from measurement: a live animated
 background cost 3–4% of a CPU core continuously, which nobody wants behind a study session on
 battery. The fix was to render it once at startup (about 16 ms) and never again.
@@ -161,7 +167,7 @@ offline, privately and without usage limits.
 Each one uses the same format as the real files. The ADR and the code log are shortened from real
 ones. The spec and the ticket are made up to show a full cycle in one place.
 
-- [`examples/spec.md`](examples/spec.md): a feature spec after the grill
+- [`examples/spec.md`](examples/spec.md): a feature spec after the diverge step and the grill
 - [`examples/issues/01-due-badge.md`](examples/issues/01-due-badge.md): one ticket, with review triage and a handoff note
 - [`examples/adr-0001-playful-without-motion.md`](examples/adr-0001-playful-without-motion.md): a design decision record
 - [`examples/code-log.md`](examples/code-log.md): a facts-only implementation report
