@@ -11,6 +11,7 @@ down what we learned so the next session doesn't start from zero.
 - [The core idea](#the-core-idea)
 - [The coding loop](#the-coding-loop)
 - [The design track](#the-design-track)
+- [Checks and review without me](#checks-and-review-without-me)
 - [Memory: the knowledge engine](#memory-the-knowledge-engine)
 - [Storage rules that came from breakage](#storage-rules-that-came-from-breakage)
 - [What doesn't work yet](#what-doesnt-work-yet)
@@ -26,13 +27,20 @@ flowchart TD
     RS --> G[Grill: questions on intent, risk, trade-offs]
     G --> S[Spec + tickets]
     S -->|Henri OKs| B[Builder agent<br/>Claude Code + cheaper subagents]
-    B -->|diff + checks| R[Reviewer agent<br/>Codex]
+    B -->|every turn end| CG{{Check gate<br/>tests in a sandbox}}
+    CG -->|red| B
+    CG -->|green| R[Reviewer agent<br/>Codex, isolated]
     R -->|findings| T{Triage}
     T -->|fix| B
     T -->|clean| C[Commit — Henri confirms]
     C --> N[Handoff note + report]
     N -->|next ticket| B
+    classDef next stroke-dasharray: 5 5
+    class CG,R next
 ```
+
+Dashed: the check gate and the isolated review are built and tested, but not wired in yet (see
+[Checks and review without me](#checks-and-review-without-me)). Until they are, I start the review myself.
 
 Seven rules carry the whole thing:
 
@@ -170,6 +178,74 @@ battery. The fix was to render it once at startup (about 16 ms) and never again.
 
 One rule sits above all of it: design must never get in the way of function.
 
+## Checks and review without me
+
+Starting every review myself added up to about five touchpoints per ticket. The goal is two: I approve
+the spec, and I approve the commit. Two pieces get there, and both run without me:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor H as Henri
+    participant B as Builder
+    participant G as Check gate
+    participant R as Review script
+    participant C as Codex<br/>isolated
+    B->>B: edits files
+    B->>G: turn ends
+    G->>G: tests of each edited project,<br/>in a sandbox
+    alt red
+        G-->>B: blocked: fix it
+    else green
+        G-->>B: done
+    end
+    B->>R: ticket + repo
+    R->>C: fixed prompt, ticket, diff
+    C-->>R: findings
+    R-->>B: review file next to the ticket
+    B->>B: triage every finding
+    B->>H: one handoff
+    H->>B: OK, commit
+```
+
+**The check gate.** When an agent's turn ends, the tests of every project it touched run on their own.
+If one is red, the agent has to fix it before it can hand anything to me. After two failed attempts it
+stops and tells me instead (the stuck rule). A new project can't slip past it: the first time an agent
+edits one that has no test command listed, or a reason why it has none, the gate sends it back to add one.
+
+The tests run in a macOS sandbox, because the agent can edit them and the gate runs them with my rights.
+Without the sandbox, editing a test would be a way to run anything at all.
+
+| A check can | A check can't |
+|---|---|
+| write inside its own project | write anywhere else, including git's own files |
+| read the workspace and its toolchain | read anything else in my home folder (SSH keys, logins, app data) |
+| talk to localhost (test servers) | reach the network |
+| use macOS frameworks (atlas draws PDFs) | send Apple Events, change dependencies, build output or agent settings, or touch the scripts my hooks run |
+| start background processes | leave any of them running once the check ends |
+
+Every rule is there because a test proved it was needed: each one is removed in turn, and the test suite
+has to fail. I also ran every project's tests with and without the sandbox, and each gave the same result
+(four projects are red either way, for reasons that have nothing to do with the sandbox).
+One gap is still open and has its own ticket: system services (opening an app through macOS itself, or
+the keychain) aren't filtered yet.
+
+**The isolated review.** A script sends one ticket's uncommitted diff to Codex and writes the review into
+a file next to the ticket. The builder picks only the ticket and the repo; the prompt is fixed. Codex runs
+in a fresh, read-only process that sees none of my own setup and none of the repo's: no instruction files,
+no hooks, no plugins, no memories, no skills. That matters because a file in the repo, or a comment in the
+diff, can try to talk a reviewer into approving.
+
+Turning those things off isn't proof that they're off. So a probe plants a marker everywhere Codex could
+pick up instructions or run something, and runs three times. First without isolation, where every marker
+has to fire, which proves the markers work. Then twice through the script itself, where none may fire.
+The review script refuses to run on a Codex version the probe hasn't passed.
+
+The script and the gate went through six adversarial reviews and a security review before they held.
+Most findings were ways around them that I hadn't thought of: a git setting that runs a program while
+reading the diff, a hard link, a space in a path, a dependency that one of my own hooks executes later.
+To find the last kind, several agents traced in parallel what each of my hooks actually runs.
+
 ## Memory: the knowledge engine
 
 AI agents forget everything between sessions. So the workspace keeps a memory of its own, as plain
@@ -214,6 +290,10 @@ machine, with me approving in a native dialog. It's built but not usable end to 
 review is switched off until I can prove the reviewer is properly isolated from the builder, and
 four recovery bugs are still open. Until then the manual loop above is the workflow. I'd rather run
 a slower process I trust than a fast one I can't check.
+
+So I took a smaller route next to it: a check gate and an isolated review (see
+[Checks and review without me](#checks-and-review-without-me)). Both are built and tested, but not wired
+into my setup yet. Until they are, the review step above stays manual.
 
 ## Local models
 
