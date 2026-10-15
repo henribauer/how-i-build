@@ -227,8 +227,10 @@ Without the sandbox, editing a test would be a way to run anything at all.
 Every rule is there because a test proved it was needed: each one is removed in turn, and the test suite
 has to fail. I also ran every project's tests with and without the sandbox, and each gave the same result
 (four projects are red either way, for reasons that have nothing to do with the sandbox).
-One gap is still open and has its own ticket: system services (opening an app through macOS itself, or
-the keychain) aren't filtered yet.
+Some gaps are still open and have their own tickets. System services aren't filtered yet, so a check could
+still ask macOS itself to start an app or a background job outside the sandbox, or reach the keychain. And
+the last security review found a few more ways around the file and process rules (tool config files such as
+`.npmrc`, a process that slips out of the end-of-check kill). The gate stays unwired until those are closed.
 
 **The isolated review.** A script sends one ticket's uncommitted diff to Codex and writes the review into
 a file next to the ticket. The builder picks only the ticket and the repo; the prompt is fixed. Codex runs
